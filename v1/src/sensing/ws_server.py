@@ -15,7 +15,8 @@ Data sources (tried in order):
     1. ESP32 CSI over UDP port 5005 (ADR-018 binary frames)
     2. Windows WiFi RSSI via netsh
     3. Linux WiFi RSSI via /proc/net/wireless
-    4. Simulated collector (fallback)
+    4. macOS WiFi RSSI via CoreWLAN Swift utility
+    5. Simulated collector (fallback)
 """
 
 from __future__ import annotations

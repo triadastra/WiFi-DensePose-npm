@@ -19,6 +19,7 @@ import pytest
 from numpy.typing import NDArray
 
 from v1.src.sensing.rssi_collector import (
+    MacosWifiCollector,
     RingBuffer,
     SimulatedCollector,
     WifiSample,
@@ -702,3 +703,50 @@ class TestBandPower:
         # Band 0.21-0.39 has no power
         p = _band_power(freqs, psd, 0.21, 0.39)
         assert p == 0.0
+
+
+# ===========================================================================
+# MacosWifiCollector tests
+# ===========================================================================
+
+class TestMacosWifiCollector:
+    """Tests for MacosWifiCollector without requiring macOS or swiftc."""
+
+    def test_constructor_sets_defaults(self):
+        """MacosWifiCollector should initialise with correct defaults."""
+        collector = MacosWifiCollector()
+        assert collector.sample_rate_hz == 10.0
+        assert collector._interface == "en0"
+        assert collector._running is False
+        assert collector._thread is None
+        assert collector._process is None
+
+    def test_constructor_custom_rate(self):
+        """Custom sample_rate_hz should be stored correctly."""
+        collector = MacosWifiCollector(sample_rate_hz=5.0)
+        assert collector.sample_rate_hz == 5.0
+
+    def test_get_samples_empty_before_start(self):
+        """get_samples() should return an empty list before start() is called."""
+        collector = MacosWifiCollector()
+        assert collector.get_samples() == []
+        assert collector.get_samples(n=10) == []
+
+    def test_stop_is_safe_when_not_started(self):
+        """stop() should not raise when the collector has never been started."""
+        collector = MacosWifiCollector()
+        collector.stop()  # must not raise
+
+    def test_commodity_backend_accepts_macos_collector(self):
+        """CommodityBackend should accept MacosWifiCollector without type errors."""
+        collector = MacosWifiCollector()
+        backend = CommodityBackend(collector=collector)
+        assert backend.collector is collector
+        assert Capability.PRESENCE in backend.get_capabilities()
+        assert Capability.MOTION in backend.get_capabilities()
+
+    def test_commodity_backend_macos_protocol_conformance(self):
+        """CommodityBackend with MacosWifiCollector should satisfy SensingBackend."""
+        collector = MacosWifiCollector()
+        backend = CommodityBackend(collector=collector)
+        assert isinstance(backend, SensingBackend)

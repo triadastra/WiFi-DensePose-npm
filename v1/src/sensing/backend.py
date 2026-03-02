@@ -19,6 +19,7 @@ from v1.src.sensing.classifier import MotionLevel, PresenceClassifier, SensingRe
 from v1.src.sensing.feature_extractor import RssiFeatureExtractor, RssiFeatures
 from v1.src.sensing.rssi_collector import (
     LinuxWifiCollector,
+    MacosWifiCollector,
     SimulatedCollector,
     WindowsWifiCollector,
     WifiCollector,
@@ -90,7 +91,7 @@ class CommodityBackend:
 
     def __init__(
         self,
-        collector: LinuxWifiCollector | SimulatedCollector | WindowsWifiCollector,
+        collector: LinuxWifiCollector | MacosWifiCollector | SimulatedCollector | WindowsWifiCollector,
         extractor: Optional[RssiFeatureExtractor] = None,
         classifier: Optional[PresenceClassifier] = None,
     ) -> None:
@@ -99,7 +100,7 @@ class CommodityBackend:
         self._classifier = classifier or PresenceClassifier()
 
     @property
-    def collector(self) -> LinuxWifiCollector | SimulatedCollector | WindowsWifiCollector:
+    def collector(self) -> LinuxWifiCollector | MacosWifiCollector | SimulatedCollector | WindowsWifiCollector:
         return self._collector
 
     @property
