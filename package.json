@@ -1,0 +1,33 @@
+{
+  "name": "wifi-densepose",
+  "version": "1.0.0",
+  "description": "WiFi-based human pose estimation and vital sign monitoring — web interface",
+  "main": "server.js",
+  "bin": {
+    "wifi-densepose": "./server.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'No build step required — static assets in ui/'",
+    "test": "node -e \"console.log('UI tests require a browser environment. Run: open http://localhost:3000/tests/test-runner.html')\"",
+    "lint": "echo 'No linter configured'"
+  },
+  "keywords": [
+    "wifi",
+    "densepose",
+    "pose-estimation",
+    "csi",
+    "human-tracking",
+    "vital-signs"
+  ],
+  "author": "ruvnet",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/triadastra/WiFi-DensePose-npm.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
