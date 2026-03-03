@@ -435,7 +435,7 @@ The Rust sensing server binary accepts the following flags:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--source` | `auto` | Data source: `auto`, `simulated`, `windows`, `esp32` |
+| `--source` | `auto` | Data source: `auto`, `simulated`, `windows`, `macos`, `linux`, `esp32` |
 | `--http-port` | `8080` | HTTP port for REST API and UI |
 | `--ws-port` | `8765` | WebSocket port |
 | `--udp-port` | `5005` | UDP port for ESP32 CSI frames |
@@ -460,6 +460,9 @@ The Rust sensing server binary accepts the following flags:
 
 # ESP32 hardware mode
 ./target/release/sensing-server --source esp32 --udp-port 5005
+
+# macOS WiFi RSSI (no ESP32 needed)
+./target/release/sensing-server --source macos --http-port 3000 --ws-port 3001 --tick-ms 500
 
 # Windows WiFi RSSI
 ./target/release/sensing-server --source windows --tick-ms 500
@@ -736,10 +739,22 @@ rustc --version
 
 Run the terminal as Administrator (required for `netsh wlan` access).
 
+### macOS: WiFi utility fails to compile
+
+Ensure Xcode Command Line Tools are installed:
+```bash
+xcode-select --install
+```
+
+If Xcode is installed but `swiftc` is missing from PATH, run:
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+```
+
 ### Vital signs show 0 BPM
 
 - Vital sign detection requires CSI-capable hardware (ESP32 or research NIC)
-- RSSI-only mode (Windows WiFi) does not have sufficient resolution for vital signs
+- RSSI-only mode (Windows WiFi, macOS WiFi) does not have sufficient resolution for vital signs
 - In simulated mode, synthetic vital signs are generated after a few seconds of warm-up
 
 ---
@@ -748,6 +763,17 @@ Run the terminal as Administrator (required for `netsh wlan` access).
 
 **Q: Do I need special hardware to try this?**
 No. Run `docker run -p 3000:3000 ruvnet/wifi-densepose:latest` and open `http://localhost:3000`. Simulated mode exercises the full pipeline with synthetic data.
+
+**Q: Can I run it on macOS without an ESP32?**
+Yes. On macOS the system automatically uses your Mac's built-in WiFi adapter (via CoreWLAN) for RSSI-based presence and motion detection — no ESP32 or any other extra hardware required. The server auto-detects macOS at startup. For the Python sensing server:
+```bash
+python -m v1.src.sensing.ws_server
+```
+For the Rust binary:
+```bash
+./target/release/sensing-server --source macos --http-port 3000 --ws-port 3001 --tick-ms 500
+```
+The first run compiles a small Swift helper (`mac_wifi`) from `v1/src/sensing/mac_wifi.swift` — Xcode Command Line Tools must be installed (`xcode-select --install`). Capabilities are limited to coarse presence and motion detection (RSSI only); pose estimation and vital signs require an ESP32 or research NIC.
 
 **Q: Can consumer WiFi laptops do pose estimation?**
 No. Consumer WiFi exposes only RSSI (one number per access point), not CSI (56+ complex subcarrier values per frame). RSSI supports coarse presence and motion detection. Full pose estimation requires CSI-capable hardware like an ESP32-S3 ($8) or a research NIC.

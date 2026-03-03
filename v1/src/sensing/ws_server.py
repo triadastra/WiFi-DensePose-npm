@@ -322,7 +322,7 @@ class SensingWebSocketServer:
         self._running = False
 
     def _create_collector(self):
-        """Auto-detect data source: ESP32 UDP > Windows WiFi > Linux WiFi > simulated."""
+        """Auto-detect data source: ESP32 UDP > Windows WiFi > Linux WiFi > macOS WiFi > simulated."""
         # 1. Try ESP32 UDP first
         print("  Probing for ESP32 on UDP :5005 ...")
         if probe_esp32_udp(ESP32_UDP_PORT, timeout=2.0):

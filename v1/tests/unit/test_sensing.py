@@ -750,3 +750,52 @@ class TestMacosWifiCollector:
         collector = MacosWifiCollector()
         backend = CommodityBackend(collector=collector)
         assert isinstance(backend, SensingBackend)
+
+
+# ===========================================================================
+# SensingWebSocketServer._create_collector tests (macOS Darwin path)
+# ===========================================================================
+
+class TestCreateCollectorDarwin:
+    """Unit tests for SensingWebSocketServer._create_collector on macOS."""
+
+    def test_darwin_returns_macos_collector(self, monkeypatch):
+        """On Darwin, _create_collector should return a MacosWifiCollector."""
+        from v1.src.sensing.ws_server import SensingWebSocketServer
+
+        # Patch probe_esp32_udp to skip the 2-second UDP probe
+        monkeypatch.setattr(
+            "v1.src.sensing.ws_server.probe_esp32_udp",
+            lambda *a, **kw: False,
+        )
+        # Patch platform.system to report Darwin
+        monkeypatch.setattr("v1.src.sensing.ws_server.platform.system", lambda: "Darwin")
+        # Prevent actual Swift compilation by making start() a no-op
+        monkeypatch.setattr(MacosWifiCollector, "start", lambda self: None)
+
+        server = SensingWebSocketServer()
+        collector = server._create_collector()
+
+        assert isinstance(collector, MacosWifiCollector)
+        assert server.source == "macos_wifi"
+
+    def test_darwin_falls_back_to_simulated_when_collector_raises(self, monkeypatch):
+        """If MacosWifiCollector() raises, _create_collector should fall back to simulated."""
+        from v1.src.sensing.ws_server import SensingWebSocketServer, SimulatedCollector
+
+        monkeypatch.setattr(
+            "v1.src.sensing.ws_server.probe_esp32_udp",
+            lambda *a, **kw: False,
+        )
+        monkeypatch.setattr("v1.src.sensing.ws_server.platform.system", lambda: "Darwin")
+
+        def _raise(*a, **kw):
+            raise RuntimeError("swiftc not found")
+
+        monkeypatch.setattr("v1.src.sensing.ws_server.MacosWifiCollector", _raise)
+
+        server = SensingWebSocketServer()
+        collector = server._create_collector()
+
+        assert isinstance(collector, SimulatedCollector)
+        assert server.source == "simulated"
