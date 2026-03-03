@@ -18,7 +18,7 @@ export interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      serverUrl: 'http://192.168.1.100:8080',
+      serverUrl: 'http://localhost:3000',
       rssiScanEnabled: false,
       theme: 'system',
       alertSoundEnabled: true,

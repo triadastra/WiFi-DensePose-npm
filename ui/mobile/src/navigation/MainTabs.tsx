@@ -37,11 +37,14 @@ const createPlaceholder = (label: string) => {
   return Wrapped;
 };
 
-const loadScreen = (path: string, label: string) => {
+const wrapLazy = (
+  loader: () => Promise<{ default: React.ComponentType }>,
+  label: string,
+) => {
   const fallback = createPlaceholder(label);
   return React.lazy(async () => {
     try {
-      const module = (await import(path)) as { default: React.ComponentType };
+      const module = await loader();
       if (module?.default) {
         return module;
       }
@@ -52,11 +55,11 @@ const loadScreen = (path: string, label: string) => {
   });
 };
 
-const LiveScreen = loadScreen('../screens/LiveScreen', 'Live');
-const VitalsScreen = loadScreen('../screens/VitalsScreen', 'Vitals');
-const ZonesScreen = loadScreen('../screens/ZonesScreen', 'Zones');
-const MATScreen = loadScreen('../screens/MATScreen', 'MAT');
-const SettingsScreen = loadScreen('../screens/SettingsScreen', 'Settings');
+const LiveScreen = wrapLazy(() => import('../screens/LiveScreen'), 'Live');
+const VitalsScreen = wrapLazy(() => import('../screens/VitalsScreen'), 'Vitals');
+const ZonesScreen = wrapLazy(() => import('../screens/ZonesScreen'), 'Zones');
+const MATScreen = wrapLazy(() => import('../screens/MATScreen'), 'MAT');
+const SettingsScreen = wrapLazy(() => import('../screens/SettingsScreen'), 'Settings');
 
 const toIconName = (routeName: keyof MainTabsParamList) => {
   switch (routeName) {

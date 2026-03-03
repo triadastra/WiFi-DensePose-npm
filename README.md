@@ -12,6 +12,7 @@ WiFi DensePose turns commodity WiFi signals into real-time human pose estimation
 [![ESP32 Ready](https://img.shields.io/badge/ESP32--S3-CSI%20streaming-purple.svg)](#esp32-s3-hardware-pipeline)
 [![crates.io](https://img.shields.io/crates/v/wifi-densepose-ruvector.svg)](https://crates.io/crates/wifi-densepose-ruvector)
 
+ 
 > | What | How | Speed |
 > |------|-----|-------|
 > | **Pose estimation** | CSI subcarrier amplitude/phase → DensePose UV maps | 54K fps (Rust) |
@@ -53,6 +54,12 @@ docker run -p 3000:3000 ruvnet/wifi-densepose:latest
 | [DDD Domain Model](docs/ddd/ruvsense-domain-model.md) | RuvSense bounded contexts, aggregates, domain events, and ubiquitous language |
 
 ---
+
+
+  <img src="assets/screen.png" alt="WiFi DensePose — Live pose detection with setup guide" width="800">
+  <br>
+  <em>Real-time pose skeleton from WiFi CSI signals — no cameras, no wearables</em>
+
 
 ## 🚀 Key Features
 
@@ -824,16 +831,16 @@ ESP32-S3 (STA + promiscuous)     UDP/5005      Rust aggregator
 
 ```bash
 # Pre-built binaries — no toolchain required
-# https://github.com/ruvnet/wifi-densepose/releases/tag/v0.1.0-esp32
+# https://github.com/ruvnet/wifi-densepose/releases/tag/v0.2.0-esp32
 
 python -m esptool --chip esp32s3 --port COM7 --baud 460800 \
   write-flash --flash-mode dio --flash-size 4MB \
   0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 esp32-csi-node.bin
 
-python scripts/provision.py --port COM7 \
+python firmware/esp32-csi-node/provision.py --port COM7 \
   --ssid "YourWiFi" --password "secret" --target-ip 192.168.1.20
 
-cargo run -p wifi-densepose-hardware --bin aggregator -- --bind 0.0.0.0:5005 --verbose
+cargo run -p wifi-densepose-sensing-server -- --http-port 3000 --source esp32
 ```
 
 See [firmware/esp32-csi-node/README.md](firmware/esp32-csi-node/README.md) and [Tutorial #34](https://github.com/ruvnet/wifi-densepose/issues/34).

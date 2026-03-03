@@ -42,13 +42,11 @@ const resolveBannerState = (status: ConnectionStatus): 'connected' | 'simulated'
 export const MATScreen = () => {
   const { connectionStatus, lastFrame } = usePoseStream();
 
-  const { survivors, alerts, upsertSurvivor, addAlert, upsertEvent } = useMatStore((state) => ({
-    survivors: state.survivors,
-    alerts: state.alerts,
-    upsertSurvivor: state.upsertSurvivor,
-    addAlert: state.addAlert,
-    upsertEvent: state.upsertEvent,
-  }));
+  const survivors = useMatStore((state) => state.survivors);
+  const alerts = useMatStore((state) => state.alerts);
+  const upsertSurvivor = useMatStore((state) => state.upsertSurvivor);
+  const addAlert = useMatStore((state) => state.addAlert);
+  const upsertEvent = useMatStore((state) => state.upsertEvent);
 
   const { webViewRef, ready, onMessage, sendFrameUpdate, postEvent } = useMatBridge({
     onSurvivorDetected: (survivor) => {
