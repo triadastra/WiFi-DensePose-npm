@@ -15,7 +15,8 @@ Data sources (tried in order):
     1. ESP32 CSI over UDP port 5005 (ADR-018 binary frames)
     2. Windows WiFi RSSI via netsh
     3. Linux WiFi RSSI via /proc/net/wireless
-    4. Simulated collector (fallback)
+    4. macOS WiFi RSSI via CoreWLAN Swift utility
+    5. Simulated collector (fallback)
 """
 
 from __future__ import annotations
@@ -321,7 +322,7 @@ class SensingWebSocketServer:
         self._running = False
 
     def _create_collector(self):
-        """Auto-detect data source: ESP32 UDP > Windows WiFi > Linux WiFi > simulated."""
+        """Auto-detect data source: ESP32 UDP > Windows WiFi > Linux WiFi > macOS WiFi > simulated."""
         # 1. Try ESP32 UDP first
         print("  Probing for ESP32 on UDP :5005 ...")
         if probe_esp32_udp(ESP32_UDP_PORT, timeout=2.0):

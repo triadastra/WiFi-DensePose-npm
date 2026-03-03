@@ -19,6 +19,7 @@ import pytest
 from numpy.typing import NDArray
 
 from v1.src.sensing.rssi_collector import (
+    MacosWifiCollector,
     RingBuffer,
     SimulatedCollector,
     WifiSample,
@@ -702,3 +703,99 @@ class TestBandPower:
         # Band 0.21-0.39 has no power
         p = _band_power(freqs, psd, 0.21, 0.39)
         assert p == 0.0
+
+
+# ===========================================================================
+# MacosWifiCollector tests
+# ===========================================================================
+
+class TestMacosWifiCollector:
+    """Tests for MacosWifiCollector without requiring macOS or swiftc."""
+
+    def test_constructor_sets_defaults(self):
+        """MacosWifiCollector should initialise with correct defaults."""
+        collector = MacosWifiCollector()
+        assert collector.sample_rate_hz == 10.0
+        assert collector._interface == "en0"
+        assert collector._running is False
+        assert collector._thread is None
+        assert collector._process is None
+
+    def test_constructor_custom_rate(self):
+        """Custom sample_rate_hz should be stored correctly."""
+        collector = MacosWifiCollector(sample_rate_hz=5.0)
+        assert collector.sample_rate_hz == 5.0
+
+    def test_get_samples_empty_before_start(self):
+        """get_samples() should return an empty list before start() is called."""
+        collector = MacosWifiCollector()
+        assert collector.get_samples() == []
+        assert collector.get_samples(n=10) == []
+
+    def test_stop_is_safe_when_not_started(self):
+        """stop() should not raise when the collector has never been started."""
+        collector = MacosWifiCollector()
+        collector.stop()  # must not raise
+
+    def test_commodity_backend_accepts_macos_collector(self):
+        """CommodityBackend should accept MacosWifiCollector without type errors."""
+        collector = MacosWifiCollector()
+        backend = CommodityBackend(collector=collector)
+        assert backend.collector is collector
+        assert Capability.PRESENCE in backend.get_capabilities()
+        assert Capability.MOTION in backend.get_capabilities()
+
+    def test_commodity_backend_macos_protocol_conformance(self):
+        """CommodityBackend with MacosWifiCollector should satisfy SensingBackend."""
+        collector = MacosWifiCollector()
+        backend = CommodityBackend(collector=collector)
+        assert isinstance(backend, SensingBackend)
+
+
+# ===========================================================================
+# SensingWebSocketServer._create_collector tests (macOS Darwin path)
+# ===========================================================================
+
+class TestCreateCollectorDarwin:
+    """Unit tests for SensingWebSocketServer._create_collector on macOS."""
+
+    def test_darwin_returns_macos_collector(self, monkeypatch):
+        """On Darwin, _create_collector should return a MacosWifiCollector."""
+        from v1.src.sensing.ws_server import SensingWebSocketServer
+
+        # Patch probe_esp32_udp to skip the 2-second UDP probe
+        monkeypatch.setattr(
+            "v1.src.sensing.ws_server.probe_esp32_udp",
+            lambda *a, **kw: False,
+        )
+        # Patch platform.system to report Darwin
+        monkeypatch.setattr("v1.src.sensing.ws_server.platform.system", lambda: "Darwin")
+        # Prevent actual Swift compilation by making start() a no-op
+        monkeypatch.setattr(MacosWifiCollector, "start", lambda self: None)
+
+        server = SensingWebSocketServer()
+        collector = server._create_collector()
+
+        assert isinstance(collector, MacosWifiCollector)
+        assert server.source == "macos_wifi"
+
+    def test_darwin_falls_back_to_simulated_when_collector_raises(self, monkeypatch):
+        """If MacosWifiCollector() raises, _create_collector should fall back to simulated."""
+        from v1.src.sensing.ws_server import SensingWebSocketServer, SimulatedCollector
+
+        monkeypatch.setattr(
+            "v1.src.sensing.ws_server.probe_esp32_udp",
+            lambda *a, **kw: False,
+        )
+        monkeypatch.setattr("v1.src.sensing.ws_server.platform.system", lambda: "Darwin")
+
+        def _raise(*a, **kw):
+            raise RuntimeError("swiftc not found")
+
+        monkeypatch.setattr("v1.src.sensing.ws_server.MacosWifiCollector", _raise)
+
+        server = SensingWebSocketServer()
+        collector = server._create_collector()
+
+        assert isinstance(collector, SimulatedCollector)
+        assert server.source == "simulated"
