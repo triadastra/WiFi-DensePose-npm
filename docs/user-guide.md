@@ -301,6 +301,20 @@ Base URL: `http://localhost:3000` (Docker) or `http://localhost:8080` (binary de
 | `GET` | `/api/v1/model/layers` | Progressive model loading status | Layer A/B/C load state |
 | `GET` | `/api/v1/model/sona/profiles` | SONA adaptation profiles | List of environment profiles |
 | `POST` | `/api/v1/model/sona/activate` | Activate a SONA profile for a specific room | `{"profile":"kitchen"}` |
+| `GET` | `/api/v1/models` | List available RVF model files | `{"models":[...],"count":0}` |
+| `GET` | `/api/v1/models/active` | Currently loaded model (or null) | `{"model":null}` |
+| `POST` | `/api/v1/models/load` | Load a model by ID | `{"status":"loaded","model_id":"..."}` |
+| `POST` | `/api/v1/models/unload` | Unload the active model | `{"status":"unloaded"}` |
+| `DELETE` | `/api/v1/models/:id` | Delete a model file from disk | `{"status":"deleted"}` |
+| `GET` | `/api/v1/models/lora/profiles` | List LoRA adapter profiles | `{"profiles":[]}` |
+| `POST` | `/api/v1/models/lora/activate` | Activate a LoRA profile | `{"status":"activated"}` |
+| `GET` | `/api/v1/recording/list` | List CSI recording sessions | `{"recordings":[...],"count":0}` |
+| `POST` | `/api/v1/recording/start` | Start recording CSI frames to JSONL | `{"status":"recording","session_id":"..."}` |
+| `POST` | `/api/v1/recording/stop` | Stop the active recording | `{"status":"stopped","duration_secs":...}` |
+| `DELETE` | `/api/v1/recording/:id` | Delete a recording file | `{"status":"deleted"}` |
+| `GET` | `/api/v1/train/status` | Training run status | `{"phase":"idle"}` |
+| `POST` | `/api/v1/train/start` | Start a training run | `{"status":"started"}` |
+| `POST` | `/api/v1/train/stop` | Stop the active training run | `{"status":"stopped"}` |
 
 ### Example: Get Vital Signs
 
@@ -347,7 +361,9 @@ curl -s http://localhost:3000/api/v1/pose/current | python -m json.tool
 
 Real-time sensing data is available via WebSocket.
 
-**URL:** `ws://localhost:3001/ws/sensing` (Docker) or `ws://localhost:8765/ws/sensing` (binary default).
+**URL:** `ws://localhost:3000/ws/sensing` (same port as HTTP — recommended) or `ws://localhost:3001/ws/sensing` (dedicated WS port).
+
+> **Note:** The `/ws/sensing` WebSocket endpoint is available on both the HTTP port (3000) and the dedicated WebSocket port (3001/8765). The web UI uses the HTTP port so only one port needs to be exposed. The dedicated WS port remains available for backward compatibility.
 
 ### Python Example
 
@@ -615,7 +631,12 @@ A 3-6 node ESP32-S3 mesh provides full CSI at 20 Hz. Total cost: ~$54 for a 3-no
 
 **Flashing firmware:**
 
-Pre-built binaries are available at [Releases](https://github.com/ruvnet/wifi-densepose/releases/tag/v0.2.0-esp32).
+Pre-built binaries are available at [Releases](https://github.com/ruvnet/wifi-densepose/releases):
+
+| Release | What It Includes | Tag |
+|---------|-----------------|-----|
+| [v0.2.0](https://github.com/ruvnet/wifi-densepose/releases/tag/v0.2.0-esp32) | Stable — raw CSI streaming, TDM, channel hopping, QUIC mesh | `v0.2.0-esp32` |
+| [v0.3.0-alpha](https://github.com/ruvnet/wifi-densepose/releases/tag/v0.3.0-alpha-esp32) | Alpha — adds on-device edge intelligence (ADR-039) | `v0.3.0-alpha-esp32` |
 
 ```bash
 # Flash an ESP32-S3 (requires esptool: pip install esptool)
@@ -659,6 +680,42 @@ python firmware/esp32-csi-node/provision.py --port COM8 --tdm-slot 1 --tdm-total
 # Node 2 (slot 2)
 python firmware/esp32-csi-node/provision.py --port COM9 --tdm-slot 2 --tdm-total 3
 ```
+
+**Edge Intelligence (v0.3.0-alpha, [ADR-039](../docs/adr/ADR-039-esp32-edge-intelligence.md)):**
+
+The v0.3.0-alpha firmware adds on-device signal processing that runs directly on the ESP32-S3 — no host PC needed for basic presence and vital signs. Edge processing is disabled by default for full backward compatibility.
+
+| Tier | What It Does | Extra RAM |
+|------|-------------|-----------|
+| **0** | Disabled (default) — streams raw CSI to the aggregator | 0 KB |
+| **1** | Phase unwrapping, running statistics, top-K subcarrier selection, delta compression | ~30 KB |
+| **2** | Everything in Tier 1, plus presence detection, breathing/heart rate, motion scoring, fall detection | ~33 KB |
+
+Enable via NVS (no reflash needed):
+
+```bash
+# Enable Tier 2 (full vitals) on an already-flashed node
+python firmware/esp32-csi-node/provision.py --port COM7 \
+  --ssid "YourWiFi" --password "YourPassword" --target-ip 192.168.1.20 \
+  --edge-tier 2
+```
+
+Key NVS settings for edge processing:
+
+| NVS Key | Default | What It Controls |
+|---------|---------|-----------------|
+| `edge_tier` | 0 | Processing tier (0=off, 1=stats, 2=vitals) |
+| `pres_thresh` | 50 | Sensitivity for presence detection (lower = more sensitive) |
+| `fall_thresh` | 500 | Fall detection threshold (variance spike trigger) |
+| `vital_win` | 300 | How many frames of phase history to keep for breathing/HR extraction |
+| `vital_int` | 1000 | How often to send a vitals packet, in milliseconds |
+| `subk_count` | 32 | Number of best subcarriers to keep (out of 56) |
+
+When Tier 2 is active, the node sends a 32-byte vitals packet at 1 Hz (configurable) containing presence state, motion score, breathing BPM, heart rate BPM, confidence values, fall flag, and occupancy estimate. The packet uses magic `0xC5110002` and is sent to the same aggregator IP and port as raw CSI frames.
+
+Binary size: 777 KB (24% free in the 1 MB app partition).
+
+> **Alpha notice**: Vital sign estimation uses heuristic BPM extraction. Accuracy is best with stationary subjects in controlled environments. Not for medical use.
 
 **Start the aggregator:**
 
@@ -797,7 +854,7 @@ The Rust implementation (v2) is 810x faster than Python (v1) for the full CSI pi
 
 ## Further Reading
 
-- [Architecture Decision Records](../docs/adr/) - 33 ADRs covering all design decisions
+- [Architecture Decision Records](../docs/adr/) - 43 ADRs covering all design decisions
 - [WiFi-Mat Disaster Response Guide](wifi-mat-user-guide.md) - Search & rescue module
 - [Build Guide](build-guide.md) - Detailed build instructions
 - [RuVector](https://github.com/ruvnet/ruvector) - Signal intelligence crate ecosystem

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Sensing server UI API completion (ADR-043)** — 14 fully-functional REST endpoints for model management, CSI recording, and training control
+  - Model CRUD: `GET /api/v1/models`, `GET /api/v1/models/active`, `POST /api/v1/models/load`, `POST /api/v1/models/unload`, `DELETE /api/v1/models/:id`, `GET /api/v1/models/lora/profiles`, `POST /api/v1/models/lora/activate`
+  - CSI recording: `GET /api/v1/recording/list`, `POST /api/v1/recording/start`, `POST /api/v1/recording/stop`, `DELETE /api/v1/recording/:id`
+  - Training control: `GET /api/v1/train/status`, `POST /api/v1/train/start`, `POST /api/v1/train/stop`
+  - Recording writes CSI frames to `.jsonl` files via tokio background task
+  - Model/recording directories scanned at startup, state managed via `Arc<RwLock<AppStateInner>>`
+- **ADR-044: Provisioning tool enhancements** — 5-phase plan for complete NVS coverage (7 missing keys), JSON config files, mesh presets, read-back/verify, and auto-detect
+- **25 real mobile tests** replacing `it.todo()` placeholders — 205 assertions covering components, services, stores, hooks, screens, and utils
 - **Project MERIDIAN (ADR-027)** — Cross-environment domain generalization for WiFi pose estimation (1,858 lines, 72 tests)
   - `HardwareNormalizer` — Catmull-Rom cubic interpolation resamples any hardware CSI to canonical 56 subcarriers; z-score + phase sanitization
   - `DomainFactorizer` + `GradientReversalLayer` — adversarial disentanglement of pose-relevant vs environment-specific features
@@ -23,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ADR-025: macOS CoreWLAN WiFi Sensing (ORCA)
 
 ### Fixed
+- **sendto ENOMEM crash (Issue #127)** — CSI callbacks in promiscuous mode exhaust lwIP pbuf pool causing guru meditation crash. Fixed with 50 Hz rate limiter in `csi_collector.c` and 100 ms ENOMEM backoff in `stream_sender.c`. Hardware-verified on ESP32-S3 (200+ callbacks, zero crashes)
+- **Provisioning script missing TDM/edge flags (Issue #130)** — Added `--tdm-slot`, `--tdm-total`, `--edge-tier`, `--pres-thresh`, `--fall-thresh`, `--vital-win`, `--vital-int`, `--subk-count` to `provision.py`
+- **WebSocket "RECONNECTING" on Dashboard/Live Demo** — `sensingService.start()` now called on app init in `app.js` so WebSocket connects immediately instead of waiting for Sensing tab visit
+- **Mobile WebSocket port** — `ws.service.ts` `buildWsUrl()` uses same-origin port instead of hardcoded port 3001
+- **Mobile Jest config** — `testPathIgnorePatterns` no longer silently ignores the entire test directory
 - Removed synthetic byte counters from Python `MacosWifiCollector` — now reports `tx_bytes=0, rx_bytes=0` instead of fake incrementing values
 
 ---
